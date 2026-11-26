@@ -1,0 +1,7 @@
+moderngl>=5.13
+glfw>=2.11
+numpy>=2.0
+PySide6-Essentials>=6.12
+Pillow>=11.0
+fonttools>=4.50
+tomli-w>=1.0
