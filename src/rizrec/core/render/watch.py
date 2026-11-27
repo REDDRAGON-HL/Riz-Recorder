@@ -144,7 +144,7 @@ PILL_TEXT_SIZE = 26.0
 PILL_ICON_DX = -227.5
 PILL_ICON_DY = 491.0
 PILL_ICON_SIZE = 65.0
-WATCH_ICON_FILE = "观赏模式.png"
+WATCH_ICON_FILE = "auto.png"
 CREDIT_X = 62.0
 CREDIT_ILLUSTRATOR_Y = 116.25
 CREDIT_DESIGNER_Y = 73.0
@@ -501,7 +501,7 @@ class WatchCard:
         """
         if self._icon is not None and self._icon_px == size_px:
             return self._icon
-        path = os.path.join(self.assets.root, WATCH_ICON_FILE)
+        path = os.path.join(self.assets.root, "textures", WATCH_ICON_FILE)
         if not os.path.isfile(path):
             return None
         try:

@@ -58,7 +58,15 @@ def _particle_seed(judgement_tick: float, emission_key: int) -> int:
     return (a ^ b) & 0xFFFFFFFF or 1
 
 
+_particle_cache: dict[tuple[int, int], list[dict]] = {}
+_spray_cache: dict[int, list[dict]] = {}
+
+
 def create_particles(judgement_tick: float, emission_key: int) -> list[dict]:
+    key = (int(round(judgement_tick * 65536)), emission_key)
+    cached = _particle_cache.get(key)
+    if cached is not None:
+        return cached
     rng = Rng(_particle_seed(judgement_tick, emission_key))
     particles = []
     for i in range(PARTICLE_COUNT):
@@ -77,6 +85,9 @@ def create_particles(judgement_tick: float, emission_key: int) -> list[dict]:
             MOTION_INNER_RADIUS_SQ + (1.0 - MOTION_INNER_RADIUS_SQ) * rng.next()
         )
         p["phase"] = i
+    if len(_particle_cache) > 4096:
+        _particle_cache.clear()
+    _particle_cache[key] = particles
     return particles
 
 
@@ -107,9 +118,22 @@ def particle_travel(age: float, speed: float) -> float:
     dt = age / steps
     offset = 0.0
     v = speed
+    lifetime = PARTICLE_LIFETIME
     for i in range(steps):
-        u = (i * dt) / PARTICLE_LIFETIME
-        v = max(0.0, v - dt * _drag(u) * v * v)
+        u = (i * dt) / lifetime
+        # Inlined _drag(u) (same operations/order): the function call was the
+        # dominant cost in this loop and this runs ~thousands of steps/frame.
+        u2 = u * u
+        u3 = u2 * u
+        drag = (
+            (2 * u3 - 3 * u2 + 1) * 0.00885009765625
+            + (u3 - 2 * u2 + u) * 24.159265518188477
+            + (3 * u2 - 2 * u3)
+            - (u3 - u2) * 8.176969528198242
+        )
+        nv = v - dt * drag * v * v
+        # max(0.0, nv) without the builtin call (same result).
+        v = nv if nv > 0.0 else 0.0
         offset += dt * v
     if len(_travel_cache) > 20000:
         _travel_cache.clear()
@@ -172,6 +196,10 @@ def perfect_sample(progress: float) -> float:
 
 
 def create_spray(judgement_tick: float) -> list[dict]:
+    key = int(round(judgement_tick * 65536))
+    cached = _spray_cache.get(key)
+    if cached is not None:
+        return cached
     rng = Rng(_particle_seed(judgement_tick, 0x5BD1E995))
     spray = []
     for i in range(PERFECT_SPRAY_COUNT):
@@ -186,6 +214,9 @@ def create_spray(judgement_tick: float) -> list[dict]:
                 "start_radius": 0.2 * (0.8 + rng.next() * 0.2),
             }
         )
+    if len(_spray_cache) > 4096:
+        _spray_cache.clear()
+    _spray_cache[key] = spray
     return spray
 
 

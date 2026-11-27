@@ -379,8 +379,26 @@ class Renderer:
                 cap_end=cap_end,
             )
 
+        y_scale = h * scene_scale * flow * scale
         for line in chart.draw_lines:
             if len(line.points) < 2:
+                continue
+            # Cheap per-line cull: only a few dozen of the (often thousands of)
+            # lines are on screen, and projecting every point of the rest was
+            # the hot loop.  Matches the old max(ys)/min(ys) skip exactly.
+            lo = hi = None
+            for _ci, _fmn, _fmx in line.canvas_bounds:
+                _cp = cpos.get(_ci)
+                if _cp is None:
+                    lo = None
+                    break
+                _a = _fmn - _cp[1]
+                _b = _fmx - _cp[1]
+                lo = _a if lo is None else min(lo, _a)
+                hi = _b if hi is None else max(hi, _b)
+            if lo is not None and (
+                judge_y - lo * y_scale < top_cull or judge_y - hi * y_scale > h
+            ):
                 continue
             overlay = color_at(line.line_color, tick)
             line_width = line_w
@@ -396,7 +414,7 @@ class Renderer:
                 proj.append(
                     (
                         half_w + pt.x * scale * field_w + cp[0],
-                        judge_y - (pt.fp - cp[1]) * h * scene_scale * flow * scale,
+                        judge_y - (pt.fp - cp[1]) * y_scale,
                     )
                 )
                 colors.append(pt.color.mix(overlay) if overlay is not None else pt.color)
@@ -618,19 +636,19 @@ class Renderer:
                 x = half_w + self._line_x(note, tick, cpos, scale, field_w)
                 y = 0.0
             else:
-                x = half_w + self._note_base_x(note, cpos, scale, field_w)
                 cp = cpos.get(note.start_canvas)
                 if cp is None:
                     continue
-                y = -(note.start_floor - cp[1]) * h * scene_scale * flow * scale
-            # The top cover (drawn later) fades notes in; do not clip early.
+                y = -(note.start_floor - cp[1]) * y_scale
+                # The top cover (drawn later) fades notes in; do not clip early.
+                if y < -h * 1.5:
+                    continue
+                x = half_w + self._note_base_x(note, cpos, scale, field_w)
             body_fade = 1.0
-            if not hit and y < -h * 1.5:
-                continue
             ce = cpos.get(note.end_canvas)
             if ce is None:
                 continue
-            end_y = -(note.end_floor - ce[1]) * h * scene_scale * flow * scale
+            end_y = -(note.end_floor - ce[1]) * y_scale
             if abs(end_y - y) <= 0.05:
                 continue
             body_w = 0.192 * unit * scale
@@ -726,19 +744,19 @@ class Renderer:
                 if time_seconds >= note.end_sec + 0.25:
                     continue
             hit = tick >= note.tick
-            if note.kind == NOTE_HOLD and hit:
-                x = half_w + self._line_x(note, tick, cpos, scale, field_w)
-            else:
-                x = half_w + self._note_base_x(note, cpos, scale, field_w)
             if hit:
                 y = 0.0
             else:
                 cp = cpos.get(note.start_canvas)
                 if cp is None:
                     continue
-                y = -(note.start_floor - cp[1]) * h * scene_scale * flow * scale
-            if y < -h * 1.5:
-                continue
+                y = -(note.start_floor - cp[1]) * y_scale
+                if y < -h * 1.5:
+                    continue
+            if note.kind == NOTE_HOLD and hit:
+                x = half_w + self._line_x(note, tick, cpos, scale, field_w)
+            else:
+                x = half_w + self._note_base_x(note, cpos, scale, field_w)
             # No manual top fade: the 1-unit top cover gradient does it.
             fade = 1.0
             head_scale = 1.0

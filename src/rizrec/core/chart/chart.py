@@ -278,6 +278,10 @@ class LineState:
     line_color: list[ColorKeyPoint]
     ring_color: list[ColorKeyPoint]
     times: list[float] = field(default_factory=list)
+    # Per-canvas min/max floor: lets the renderer skip lines that are entirely
+    # off-screen without projecting every point (identical output, much less
+    # Python work — a chart can have thousands of lines and only tens visible).
+    canvas_bounds: tuple[tuple[int, float, float], ...] = ()
 
     def segment_index(self, tick: float) -> int:
         if self.times:
@@ -490,6 +494,15 @@ class Chart:
                 ring_color=_color_keypoints(raw.get("judgeRingColor", [])),
                 times=[p.time for p in points],
             )
+            bounds: dict[int, tuple[float, float]] = {}
+            for point in points:
+                lo, hi = bounds.get(point.canvas, (point.fp, point.fp))
+                if point.fp < lo:
+                    lo = point.fp
+                if point.fp > hi:
+                    hi = point.fp
+                bounds[point.canvas] = (lo, hi)
+            line.canvas_bounds = tuple((ci, lo, hi) for ci, (lo, hi) in bounds.items())
 
             raw_notes = raw.get("notes", []) or []
             raw_notes.sort(key=lambda n: float(n.get("time", 0.0)))

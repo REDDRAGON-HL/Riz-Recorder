@@ -30,13 +30,14 @@ from PySide6.QtWidgets import (
 
 from ..core.chart import load_chart
 from ..core.export import export_video
+from ..paths import resource_root
 from .library import ChartEntry, difficulty_of
 
-ASSETS = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "assets")
+ASSETS = str(resource_root() / "assets")
 
 ASPECTS = {
-    "9:16（手机竖屏）": (1080, 1920),
-    "16:9（横屏）": (1920, 1080),
+    "9:16": (1080, 1920),
+    "16:9": (1920, 1080),
     "3:4": (1080, 1440),
     "1:1": (1080, 1080),
     "自定义": None,

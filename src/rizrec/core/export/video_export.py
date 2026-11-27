@@ -237,7 +237,15 @@ def _export_impl(
             if color_mode == "master"
             else ["-c:a", "aac", "-b:a", "320k"]
         ),
-        "-shortest",
+        # Exact frame count + duration instead of ``-shortest``: the mixed
+        # audio is ceil(total_time*sr) long and the video is round(total_time
+        # *fps)/fps, so ``-shortest`` could clip the final video frame.  The
+        # frame count is the authority here (same rule as the rhythm-parse
+        # export: -frames:v N + -t, never let the audio decide the tail).
+        "-frames:v",
+        str(total_frames),
+        "-t",
+        f"{total_frames / fps:.6f}",
         "-movflags",
         "+faststart",
         out_abs,
@@ -299,6 +307,8 @@ def _export_impl(
 
         threading.Thread(target=_drain, daemon=True).start()
         log(f"编码: {total_frames} 帧 @ {fps}fps, {width}x{height}")
+        profile = bool(os.environ.get("RIZREC_EXPORT_PROFILE"))
+        t_render = t_read = t_write = 0.0
         started = time.perf_counter()
         last_report = started
         for frame in range(total_frames):
@@ -308,14 +318,27 @@ def _export_impl(
                 # Lead-in before the chart: black, unless the watch card runs.
                 data = bytes(width * height * 3)
             else:
+                if profile:
+                    _t0 = time.perf_counter()
                 target.clear(0.0, 0.0, 0.0, 1.0)
                 renderer.render(chart_t)
                 if samples:
                     ctx.copy_framebuffer(resolve, target)
+                if profile:
+                    _t1 = time.perf_counter()
+                if samples:
                     data = resolve.read(components=3)
                 else:
                     data = target.read(components=3)
+                if profile:
+                    _t2 = time.perf_counter()
+                    t_render += _t1 - _t0
+                    t_read += _t2 - _t1
+            if profile:
+                _t3 = time.perf_counter()
             proc.stdin.write(data)
+            if profile:
+                t_write += time.perf_counter() - _t3
 
             now = time.perf_counter()
             if now - last_report >= 0.5 or frame + 1 == total_frames:
@@ -324,6 +347,11 @@ def _export_impl(
                 eta = (total_frames - done) / max(1e-6, rate)
                 log(f"  {done}/{total_frames}  {rate:5.1f} fps  ETA {eta:5.1f}s")
                 last_report = now
+        if profile:
+            log(
+                f"  计时: render {t_render:.1f}s  read {t_read:.1f}s  "
+                f"write {t_write:.1f}s  (共 {time.perf_counter() - started:.1f}s)"
+            )
         proc.stdin.close()
         code = proc.wait()
         err = b"".join(err_chunks).decode("utf-8", "replace")

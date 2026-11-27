@@ -3,14 +3,14 @@ import os
 import sys
 import threading
 import traceback
-from pathlib import Path
 
-from PySide6.QtGui import QSurfaceFormat
+from PySide6.QtGui import QIcon, QSurfaceFormat
 from PySide6.QtWidgets import QApplication
 
+from ..paths import data_root, resource_root
 from .preview import PreviewWindow
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = data_root()
 
 
 def _install_crash_log():
@@ -55,6 +55,19 @@ def main() -> None:
     QSurfaceFormat.setDefaultFormat(fmt)
 
     app = QApplication(sys.argv)
+    icon_file = resource_root() / "assets" / "app.ico"
+    if icon_file.is_file():
+        app.setWindowIcon(QIcon(str(icon_file)))
+    # Give the window its own taskbar group so Windows uses the app icon
+    # instead of the python.exe default.
+    try:
+        import ctypes
+
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+            "REDDRAGON.RizRecorder"
+        )
+    except Exception:
+        pass
     window = PreviewWindow()
     window.show()
     try:

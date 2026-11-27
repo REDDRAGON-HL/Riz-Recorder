@@ -155,12 +155,20 @@ class MeshBuilder:
         (u0, v0), (u1, v1), (u2, v2), (u3, v3) = uvs
         m = float(mode)
         t = float(tid)
-        self._vertex(x0, y0, u0, v0, c, c2, m, t)
-        self._vertex(x1, y1, u1, v1, c, c2, m, t)
-        self._vertex(x2, y2, u2, v2, c, c2, m, t)
-        self._vertex(x0, y0, u0, v0, c, c2, m, t)
-        self._vertex(x2, y2, u2, v2, c, c2, m, t)
-        self._vertex(x3, y3, u3, v3, c, c2, m, t)
+        r, g, b, a = c
+        r2, g2, b2, a2 = c2
+        # One extend per quad instead of six: the per-vertex Python call was a
+        # measurable share of the export's CPU time on dense charts.
+        self.verts.extend(
+            (
+                x0, y0, u0, v0, r, g, b, a, r2, g2, b2, a2, m, t,
+                x1, y1, u1, v1, r, g, b, a, r2, g2, b2, a2, m, t,
+                x2, y2, u2, v2, r, g, b, a, r2, g2, b2, a2, m, t,
+                x0, y0, u0, v0, r, g, b, a, r2, g2, b2, a2, m, t,
+                x2, y2, u2, v2, r, g, b, a, r2, g2, b2, a2, m, t,
+                x3, y3, u3, v3, r, g, b, a, r2, g2, b2, a2, m, t,
+            )
+        )
 
     def quad4_colors(
         self,
@@ -174,10 +182,20 @@ class MeshBuilder:
         c2s = color2s if color2s is not None else colors
         m = float(mode)
         t = float(tid)
-        for k in (0, 1, 2, 0, 2, 3):
-            x, y = corners[k]
-            u, v = uvs[k]
-            self._vertex(x, y, u, v, colors[k], c2s[k], m, t)
+        (x0, y0), (x1, y1), (x2, y2), (x3, y3) = corners
+        (u0, v0), (u1, v1), (u2, v2), (u3, v3) = uvs
+        c0, c1, c2c, c3 = colors[0], colors[1], colors[2], colors[3]
+        d0, d1, d2, d3 = c2s[0], c2s[1], c2s[2], c2s[3]
+        self.verts.extend(
+            (
+                x0, y0, u0, v0, c0[0], c0[1], c0[2], c0[3], d0[0], d0[1], d0[2], d0[3], m, t,
+                x1, y1, u1, v1, c1[0], c1[1], c1[2], c1[3], d1[0], d1[1], d1[2], d1[3], m, t,
+                x2, y2, u2, v2, c2c[0], c2c[1], c2c[2], c2c[3], d2[0], d2[1], d2[2], d2[3], m, t,
+                x0, y0, u0, v0, c0[0], c0[1], c0[2], c0[3], d0[0], d0[1], d0[2], d0[3], m, t,
+                x2, y2, u2, v2, c2c[0], c2c[1], c2c[2], c2c[3], d2[0], d2[1], d2[2], d2[3], m, t,
+                x3, y3, u3, v3, c3[0], c3[1], c3[2], c3[3], d3[0], d3[1], d3[2], d3[3], m, t,
+            )
+        )
 
     def quad(
         self,

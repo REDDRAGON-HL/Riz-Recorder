@@ -6,7 +6,6 @@ import json
 import os
 import time
 from bisect import bisect_right
-from pathlib import Path
 
 import moderngl
 import numpy as np
@@ -45,11 +44,12 @@ from ..core.chart.chart import NOTE_DRAG
 from ..core.render.assets import AssetStore
 from ..core.render import watch
 from ..core.render.renderer import RenderSettings, Renderer
+from ..paths import data_root, resource_root
 from .export_dialog import ExportDialog, ExportWorker
 from .library import ChartEntry, import_paths, match_cover
 
-ROOT = Path(__file__).resolve().parents[3]
-ASSETS = str(ROOT / "assets")
+ROOT = data_root()
+ASSETS = str(resource_root() / "assets")
 # Hit sounds are queued this far ahead of the play position (seconds of chart
 # time) so the audio callback can place them sample-accurately.
 SFX_LOOKAHEAD = 0.5
