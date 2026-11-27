@@ -847,15 +847,33 @@ class Renderer:
                 ring_col = ring_col.mix(line_col)
             if ring_col.a == 0:
                 continue
-            mesh.quad(
-                TEX_RING,
-                rx - ring_r,
-                judge_y - ring_r,
-                rx + ring_r,
-                judge_y + ring_r,
-                _rgba(ring_col, alpha),
-                mode=1,
-            )
+            # The 532px sprite is what the game look was calibrated on, so keep
+            # it bit-identical at normal zoom.  Once the camera magnifies the
+            # ring past native resolution its soft edge turns into a blur, so
+            # cross-fade to the analytic (shader) ring over 520..760 px.
+            ring_px = ring_r * 2.0
+            blend = (ring_px - 520.0) / 240.0
+            blend = 0.0 if blend < 0.0 else (1.0 if blend > 1.0 else blend)
+            if blend < 1.0:
+                mesh.quad(
+                    TEX_RING,
+                    rx - ring_r,
+                    judge_y - ring_r,
+                    rx + ring_r,
+                    judge_y + ring_r,
+                    _rgba(ring_col, alpha * (1.0 - blend)),
+                    mode=1,
+                )
+            if blend > 0.0:
+                mesh.quad(
+                    TEX_RING,
+                    rx - ring_r,
+                    judge_y - ring_r,
+                    rx + ring_r,
+                    judge_y + ring_r,
+                    _rgba(ring_col, alpha * blend),
+                    mode=3,
+                )
         _flush("rings")
 
         # 8. top / bottom covers ----------------------------------------

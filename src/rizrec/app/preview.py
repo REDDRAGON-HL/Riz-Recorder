@@ -368,7 +368,7 @@ class TaskRow(QWidget):
 class PreviewWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Riz Recorder — 渲染预览")
+        self.setWindowTitle("Riz Recorder")
         self.resize(1120, 732)
         app = QApplication.instance()
         if app is not None:
@@ -453,7 +453,7 @@ class PreviewWindow(QMainWindow):
         self.gl = PreviewGL()
         self.preview_win = QDialog(None)
         self.preview_win.setWindowFlags(Qt.Window)
-        self.preview_win.setWindowTitle("预览 — Riz Recorder")
+        self.preview_win.setWindowTitle("预览")
         self.preview_win.setModal(False)
         self.preview_win.resize(560, 960)
         pv = QVBoxLayout(self.preview_win)
@@ -1812,6 +1812,11 @@ class PreviewWindow(QMainWindow):
     # ------------------------------------------------------------ events
 
     def eventFilter(self, obj, event) -> bool:
+        if obj is self.preview_win and event.type() == QEvent.Close:
+            # Closing the detached preview stops playback instead of leaving
+            # the audio running headless.
+            if self.playing:
+                self._pause()
         if event.type() == QEvent.KeyPress and obj in (self.preview_win, self.gl):
             if event.key() == Qt.Key_Space:
                 self.toggle_play()

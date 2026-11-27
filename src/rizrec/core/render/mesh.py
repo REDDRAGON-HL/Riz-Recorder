@@ -98,6 +98,19 @@ void main() {
         m = 1.0 - smoothstep(u_circle.z - 0.8, u_circle.z + 0.8, d);
     }
     vec4 c = mix(v_col, v_col2, m);
+    if (v_mode > 2.5) {
+        // Analytic judge ring: the 532px sprite is soft and magnifies badly
+        // when the chart camera zooms in, so the ring is drawn from its
+        // normalised radii with 1px analytic AA instead (crisp at any zoom).
+        // Radii match Ring_40px.png: alpha band 0.79..0.98 of the half size.
+        vec2 p = v_uv * 2.0 - 1.0;
+        float r = length(p);
+        float d = min(r - 0.79, 0.98 - r);
+        float fw = max(fwidth(r), 1e-5);
+        c.a *= clamp(d / fw + 0.5, 0.0, 1.0);
+        frag = c;
+        return;
+    }
     if (v_mode > 1.5) {
         // Analytic AA for line quads: v goes 0..1 across the stroke.
         float fw = max(fwidth(v_uv.y), 1e-5);
